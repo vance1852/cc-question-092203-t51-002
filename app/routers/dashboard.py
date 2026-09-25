@@ -16,11 +16,17 @@ router = APIRouter(prefix="/api/dashboard", tags=["仪表盘"], dependencies=[De
 @router.get("/stats", response_model=DashboardStats)
 def stats(db: Session = Depends(get_db)):
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    # 运营口径仅统计在役站点/车辆；退役实体保留记录但不计入运营列表
+    active_stations = db.query(Station).filter(Station.is_retired.is_(False))
+    active_vehicles = db.query(Vehicle).filter(Vehicle.is_retired.is_(False))
     return DashboardStats(
-        station_total=db.query(Station).count(),
-        station_running=db.query(Station).filter(Station.status == "running").count(),
-        vehicle_total=db.query(Vehicle).count(),
-        vehicle_fault=db.query(Vehicle).filter(Vehicle.status == "fault").count(),
+        station_total=active_stations.count(),
+        station_running=active_stations.filter(Station.status == "running").count(),
+        vehicle_total=active_vehicles.count(),
+        vehicle_fault=active_vehicles.filter(Vehicle.status == "fault").count(),
         swap_today=db.query(SwapRecord).filter(SwapRecord.swapped_at >= today_start).count(),
-        battery_ready_total=db.query(func.coalesce(func.sum(Station.battery_ready), 0)).scalar() or 0,
+        battery_ready_total=db.query(func.coalesce(func.sum(Station.battery_ready), 0))
+        .filter(Station.is_retired.is_(False))
+        .scalar()
+        or 0,
     )

@@ -5,11 +5,13 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
     ForeignKey,
     Integer,
+    JSON,
     String,
 )
 from sqlalchemy.orm import relationship
@@ -29,7 +31,22 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
-class Station(Base):
+class RetireMixin:
+    """站点/车辆共用的退役审计字段。
+
+    is_retired   退役标记：退役后从默认运营列表隐藏，但记录保留以供审计。
+    retired_at   首次退役时间；重复退役不改变该值。
+    name_history 名称（站点名/车牌）变更轨迹，元素为
+                 {"name": str, "changed_at": ISO8601 字符串}，
+                 审计人员可据此查回退役实体的历史名称。
+    """
+
+    is_retired = Column(Boolean, nullable=False, default=False)
+    retired_at = Column(DateTime, nullable=True)
+    name_history = Column(JSON, nullable=False, default=list)
+
+
+class Station(RetireMixin, Base):
     """换电站。"""
 
     __tablename__ = "stations"
@@ -47,7 +64,7 @@ class Station(Base):
     swaps = relationship("SwapRecord", back_populates="station")
 
 
-class Vehicle(Base):
+class Vehicle(RetireMixin, Base):
     """新能源物流车。"""
 
     __tablename__ = "vehicles"

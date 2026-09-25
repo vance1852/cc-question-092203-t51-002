@@ -5,13 +5,13 @@ from sqlalchemy.orm import Session
 
 from .auth import hash_password
 from .config import DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME
-from .database import Base, SessionLocal, engine
+from .database import SessionLocal, ensure_schema
 from .models import Station, SwapRecord, User, Vehicle
 
 
 def init_db() -> None:
     """创建所有表并灌入种子数据（幂等：已存在则跳过）。"""
-    Base.metadata.create_all(bind=engine)
+    ensure_schema()
     db: Session = SessionLocal()
     try:
         _seed_admin(db)

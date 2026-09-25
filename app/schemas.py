@@ -1,6 +1,6 @@
 """Pydantic 数据模型（请求体与响应体）。"""
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -22,6 +22,12 @@ class UserOut(BaseModel):
     display_name: str
 
     model_config = {"from_attributes": True}
+
+
+# ---------- 退役审计 ----------
+class NameHistoryEntry(BaseModel):
+    name: str
+    changed_at: datetime
 
 
 # ---------- 换电站 ----------
@@ -48,6 +54,9 @@ class StationUpdate(BaseModel):
 class StationOut(StationBase):
     id: int
     created_at: datetime
+    is_retired: bool = False
+    retired_at: Optional[datetime] = None
+    name_history: List[NameHistoryEntry] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
@@ -76,6 +85,9 @@ class VehicleUpdate(BaseModel):
 class VehicleOut(VehicleBase):
     id: int
     created_at: datetime
+    is_retired: bool = False
+    retired_at: Optional[datetime] = None
+    name_history: List[NameHistoryEntry] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

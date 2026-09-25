@@ -6,6 +6,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import Station, SwapRecord, Vehicle
 from ..schemas import SwapCreate, SwapOut
+from ..service import commit_or_conflict
 
 router = APIRouter(prefix="/api/swaps", tags=["换电记录"], dependencies=[Depends(get_current_user)])
 
@@ -37,6 +38,10 @@ def create_swap(payload: SwapCreate, db: Session = Depends(get_db)):
     station = db.get(Station, payload.station_id)
     if not station:
         raise HTTPException(status_code=404, detail="换电站不存在")
+    if vehicle.is_retired:
+        raise HTTPException(status_code=422, detail="该车辆已退役，不能登记换电")
+    if station.is_retired:
+        raise HTTPException(status_code=422, detail="该换电站已退役，不能登记换电")
     if station.battery_ready <= 0:
         raise HTTPException(status_code=422, detail="该换电站暂无满电电池可换")
     if payload.soc_after <= payload.soc_before:
@@ -48,10 +53,11 @@ def create_swap(payload: SwapCreate, db: Session = Depends(get_db)):
         soc_before=payload.soc_before,
         soc_after=payload.soc_after,
     )
-    # 换电后更新车辆电量、扣减站点可用电池
+    # 换电后更新车辆电量、扣减站点可用电池。
+    # 三处改动在同一事务提交，任一约束异常都会整体回滚，不会留下半次更新。
     vehicle.current_soc = payload.soc_after
     station.battery_ready -= 1
     db.add(record)
-    db.commit()
+    commit_or_conflict(db, "换电登记失败，数据约束冲突，本次操作已回滚")
     db.refresh(record)
     return _to_out(record)

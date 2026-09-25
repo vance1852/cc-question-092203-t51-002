@@ -5,6 +5,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -43,6 +44,11 @@ class Station(Base):
     # 运营状态：running 运营中 / maintenance 维护中 / offline 离线
     status = Column(String(16), nullable=False, default="running")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # 退役标记：退役实体从默认运营列表隐藏，但保留以供换电历史审计
+    is_retired = Column(Boolean, nullable=False, default=False)
+    retired_at = Column(DateTime, nullable=True)
+    # 退役时刻的名称快照，即使实体之后被改名，历史记录仍可查到该名称
+    retired_name = Column(String(128), nullable=True)
 
     swaps = relationship("SwapRecord", back_populates="station")
 
@@ -60,6 +66,11 @@ class Vehicle(Base):
     # 状态：idle 空闲 / running 运营 / charging 换电中 / fault 故障
     status = Column(String(16), nullable=False, default="idle")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # 退役标记：退役车辆从默认运营列表隐藏，但保留以供换电历史审计
+    is_retired = Column(Boolean, nullable=False, default=False)
+    retired_at = Column(DateTime, nullable=True)
+    # 退役时刻的车牌快照，供历史记录长期追溯
+    retired_plate = Column(String(32), nullable=True)
 
     swaps = relationship("SwapRecord", back_populates="vehicle")
 

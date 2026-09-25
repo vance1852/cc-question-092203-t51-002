@@ -1,6 +1,7 @@
 """首次启动时初始化数据库：建表 + 内置管理员 + 种子业务数据。"""
 from datetime import datetime, timedelta
 
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from .auth import hash_password
@@ -8,10 +9,38 @@ from .config import DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME
 from .database import Base, SessionLocal, engine
 from .models import Station, SwapRecord, User, Vehicle
 
+# 旧库升级：实体表新增退役列（SQLite 仅支持 ADD COLUMN，逐列幂等补齐）
+_RETIRING_COLUMNS = {
+    "stations": [
+        ("is_retired", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("retired_at", "DATETIME"),
+        ("retired_name", "VARCHAR(128)"),
+    ],
+    "vehicles": [
+        ("is_retired", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("retired_at", "DATETIME"),
+        ("retired_plate", "VARCHAR(32)"),
+    ],
+}
+
+
+def _ensure_retirement_columns() -> None:
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as conn:
+        for table, columns in _RETIRING_COLUMNS.items():
+            if table not in existing_tables:
+                continue
+            present = {col["name"] for col in inspector.get_columns(table)}
+            for column_name, column_type in columns:
+                if column_name not in present:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_type}"))
+
 
 def init_db() -> None:
     """创建所有表并灌入种子数据（幂等：已存在则跳过）。"""
     Base.metadata.create_all(bind=engine)
+    _ensure_retirement_columns()
     db: Session = SessionLocal()
     try:
         _seed_admin(db)

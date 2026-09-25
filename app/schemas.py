@@ -48,6 +48,9 @@ class StationUpdate(BaseModel):
 class StationOut(StationBase):
     id: int
     created_at: datetime
+    is_retired: bool = False
+    retired_at: Optional[datetime] = None
+    retired_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -76,6 +79,9 @@ class VehicleUpdate(BaseModel):
 class VehicleOut(VehicleBase):
     id: int
     created_at: datetime
+    is_retired: bool = False
+    retired_at: Optional[datetime] = None
+    retired_plate: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
